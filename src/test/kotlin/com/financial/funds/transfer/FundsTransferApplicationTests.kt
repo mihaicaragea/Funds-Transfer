@@ -1,4 +1,4 @@
-package com.financial.funds_transfer
+package com.financial.funds.transfer
 
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
