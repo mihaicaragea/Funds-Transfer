@@ -1,5 +1,6 @@
 package com.financial.funds.transfer.controller
 
+import com.financial.funds.transfer.model.ExchangeResponse
 import com.financial.funds.transfer.model.TransferRequest
 import com.financial.funds.transfer.service.TransferService
 import org.springframework.web.bind.annotation.PostMapping
@@ -14,8 +15,10 @@ class TransferController(
 ) {
 
     @PostMapping
-    suspend fun transfer(@RequestBody req: TransferRequest) {
-        service.transfer(req.from, req.to, req.amount,
-            req.fromCurrency)
+    suspend fun transfer(@RequestBody req: TransferRequest): ExchangeResponse {
+        return service.transfer(
+            req.from, req.to, req.amount,
+            req.fromCurrency
+        )
     }
 }
