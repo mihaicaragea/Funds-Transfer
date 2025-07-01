@@ -14,7 +14,8 @@ class TransferController(
 ) {
 
     @PostMapping
-     fun transfer(@RequestBody req: TransferRequest) {
-        service.transfer(req.from, req.to, req.amount)
+    suspend fun transfer(@RequestBody req: TransferRequest) {
+        service.transfer(req.from, req.to, req.amount,
+            req.fromCurrency)
     }
 }

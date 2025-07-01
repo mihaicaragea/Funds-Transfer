@@ -1,11 +1,13 @@
 package com.financial.funds.transfer.service
 
 import com.financial.funds.transfer.repository.AccountRepository
+import com.financial.funds.transfer.util.retrySuspend
 import jakarta.transaction.Transactional
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
+import java.math.RoundingMode
 
 @Service
 class TransferService {
@@ -13,37 +15,31 @@ class TransferService {
     @Autowired
     private lateinit var repo: AccountRepository
 
-     fun transfer(fromId: Long, toId: Long, amount: BigDecimal) {
-            performTransferWithRetry(fromId, toId, amount)
+    @Autowired
+    private lateinit var clientService: ExchangeService
+
+    suspend fun transfer(fromId: Long, toId: Long, amount: BigDecimal, fromCurrency: String) {
+        retrySuspend(maxRetries = 3, delayMs = 50, retryOn = listOf(OptimisticLockingFailureException::class.java)) {
+            doTransfer(fromId, toId, amount, fromCurrency)
         }
+    }
 
-        private fun performTransferWithRetry(fromId: Long, toId: Long, amount: BigDecimal, maxRetries: Int = 0) {
-            var attempts = 0
-            while (true) {
-                try {
-                    doTransfer(fromId, toId, amount)
-                    return
-                } catch (e: OptimisticLockingFailureException) {
-                    if (++attempts >= maxRetries) throw e
-                    Thread.sleep(50)
-                }
-            }
+    @Transactional
+    suspend fun doTransfer(fromId: Long, toId: Long, amount: BigDecimal,fromCurrency:String) {
+        val from = repo.findById(fromId).orElseThrow { IllegalArgumentException("From not found") }
+        val to = repo.findById(toId).orElseThrow { IllegalArgumentException("To not found") }
+
+        if (from.balance < amount) throw IllegalArgumentException("Insufficient funds")
+
+        val rate = retrySuspend(maxRetries = 0, delayMs = 200) {
+            clientService.getRate(fromCurrency, to.currency)
         }
+        val converted = amount.multiply(rate).setScale(2, RoundingMode.HALF_UP)
 
-        @Transactional
-        fun doTransfer(fromId: Long, toId: Long, amount: BigDecimal) {
-            val from = repo.findById(fromId).orElseThrow { IllegalArgumentException("From not found") }
-            val to = repo.findById(toId).orElseThrow { IllegalArgumentException("To not found") }
+        from.balance = from.balance.subtract(amount)
+        to.balance = to.balance.add(converted)
 
-            if (from.balance < amount) throw IllegalArgumentException("Insufficient funds")
-
-            val rate = BigDecimal.TEN
-            val converted = amount.multiply(rate).setScale(2)
-
-            from.balance = from.balance.subtract(amount)
-            to.balance = to.balance.add(converted)
-
-            repo.save(from)
-            repo.save(to)
-        }
+        repo.save(from)
+        repo.save(to)
+    }
 }
