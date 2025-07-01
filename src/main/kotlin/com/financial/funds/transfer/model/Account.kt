@@ -11,7 +11,6 @@ data class Account(
     val ownerId: Long,
     var currency: String,
     var balance: BigDecimal,
-
     @Version
     var version: Long? = null
 )
