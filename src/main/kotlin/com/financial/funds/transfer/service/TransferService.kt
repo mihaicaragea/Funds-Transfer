@@ -4,20 +4,13 @@ import com.financial.funds.transfer.model.ExchangeResponse
 import com.financial.funds.transfer.repository.AccountRepository
 import com.financial.funds.transfer.util.retrySuspend
 import jakarta.transaction.Transactional
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.dao.OptimisticLockingFailureException
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
 import java.math.RoundingMode
 
 @Service
-class TransferService {
-
-    @Autowired
-    private lateinit var repo: AccountRepository
-
-    @Autowired
-    private lateinit var clientService: ExchangeService
+class TransferService(val repo: AccountRepository,val clientService: ExchangeService) {
 
     suspend fun transfer(fromId: Long, toId: Long, amount: BigDecimal, fromCurrency: String): ExchangeResponse {
         return retrySuspend(
